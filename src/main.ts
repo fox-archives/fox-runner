@@ -1,4 +1,11 @@
 import { path, fs, parseToml } from "../deps.ts";
+import { ensure } from "https://deno.land/x/ensure/mod.ts";
+import { Config } from "https://raw.githubusercontent.com/eankeen/config/master/mod.ts";
+import { green, red, blue } from "https://deno.land/std/fmt/colors.ts";
+
+ensure({
+  denoVersion: "1.0.5"
+});
 
 interface foxScripts {
 	commands: string[][]
@@ -13,22 +20,23 @@ export async function getCommands(): Promise<string[][]> {
 	return obj.commands
 }
 
-export function commandInPath(command: string): boolean {
-	return true
-}
-
 export async function run(command: string[]) {
-	if (!commandInPath) throw new Error('command not in path. install all requried dependencies before continuing')
+	try {
+		console.info(blue(`executing: ${command}`))
+		const proc = Deno.run({
+			stdout: "piped",
+			stderr: "piped",
+			stdin: "piped",
+			cmd: command,
+		});
 
-	const proc = Deno.run({
-		stdout: "piped",
-    stderr: "inherit",
-    stdin: "inherit",
-		cmd: command
-	})
-
-	await proc.status();
-	// proc.output() already calls close() on stdout
-	await proc.output();
-	await proc.close();
+		const output = await proc.output();
+		// console.info((new TextDecoder()).decode(output));
+		const status = await proc.status();
+		if (!status.success) throw new Error("status not 0. exiting prematuraly");
+		console.info(green('success'))
+	} catch (err) {
+		console.info(red(`error while executing '${command}'`))
+		throw new Error(err)
+	}
 }
